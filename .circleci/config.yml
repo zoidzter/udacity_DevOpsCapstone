@@ -39,7 +39,7 @@ jobs:
     docker:
       - image: circleci/golang:1.15
         auth:
-          username: mydockerhub-user
+          username: $DCKUSER
           password: $DCKPWD
           
     working_directory: ~/repo
