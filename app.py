@@ -12,4 +12,4 @@ app = Flask(__name__)
 def index():
     return f"Simple Flask Webapp for Devops Capstone by Patrick Mallon. Time: {now}"
             
-app.run(host="0.0.0.0", port=80, debug=True)
+app.run(host="0.0.0.0", port=8000, debug=True)
