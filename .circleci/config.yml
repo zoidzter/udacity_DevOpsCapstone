@@ -87,7 +87,7 @@ jobs:
       - run: 
           name: Build Image
           command: |
-            TAG=$DCKUSER/capstone
+            export TAG=$DCKUSER/capstone
             docker build --tag=$TAG .
             echo $DCKPWD | docker login -u $DCKUSER --password-stdin
             docker run -d -p 8001:8000 $TAG
@@ -100,7 +100,7 @@ jobs:
           name: Save image to an archive
           command: |
             mkdir docker-image
-            docker save -o docker-image/image.tar capstoneAppImage
+            docker save -o docker-image/image.tar $TAG
       - persist_to_workspace:
           root: .
           paths:
