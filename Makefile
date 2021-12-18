@@ -8,7 +8,7 @@
 setup:
 	# Create python virtualenv & source it
 	# source ~/.devops/bin/activate
-	python3 -m venv one~/repo/capstone
+	python3 -m venv ~/repo/capstone
 
 activate:
 	# activate venv
