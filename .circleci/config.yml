@@ -37,8 +37,11 @@ jobs:
 
   buildDockerImage:
     docker:
-      - image: python:3.7.3-stretch
-    
+      - image: circleci/golang:1.15
+        auth:
+          username: mydockerhub-user
+          password: $DCKPWD
+          
     working_directory: ~/repo
     
     steps:
@@ -49,12 +52,16 @@ jobs:
             # fallback to using the latest cache if no exact match is found
             - v1-dependencies-
           
-      - run: 
-          name: docker image build
-          command: | 
-            apptag=myapi
-            docker build --tag=$apptag .
-            docker image ls | grep $apptag | head -3
+      - setup_remote_docker:
+          version: 19.03.13
+          docker_layer_caching: true
+ 
+      # build and push Docker image
+      - run: |
+          TAG=0.1.$CIRCLE_BUILD_NUM
+          docker build --tag=$TAG .
+          echo $DCKPWD | docker login -u $DCKUSER --password-stdin
+          docker push $DCKUSER/$TAG
 
 workflows:
   default:
