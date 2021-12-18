@@ -56,8 +56,9 @@ jobs:
           TAG=capstone
           docker build --tag=$TAG .
           echo $DCKPWD | docker login -u $DCKUSER --password-stdin
+          docker run -p 8001:8000 $TAG
+          sleep 10
           check=`curl localhost:8000 | grep -c "^Simple Flask"`
-          docker run -p 8000:80 $TAG
           if [ 1 -eq $check ]
           then 
             echo "Check passed pushing image to dockerhub"
