@@ -55,7 +55,7 @@ workflows:
     jobs:
       - build
       - buildDockerImage
-          requires: build
+          requires: [build]
       #- sendImageToECR
       #    requires: buildDockerImage
       #- startInfra
