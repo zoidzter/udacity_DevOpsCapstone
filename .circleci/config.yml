@@ -22,6 +22,7 @@ jobs:
             make setup
             make activate
             make install
+            
       - save_cache:
           paths:
             - ./capstone
