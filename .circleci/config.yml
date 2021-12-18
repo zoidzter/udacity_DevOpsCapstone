@@ -57,6 +57,7 @@ jobs:
           docker build --tag=$TAG .
           echo $DCKPWD | docker login -u $DCKUSER --password-stdin
           check=`curl localhost:8000 | grep -c "^Simple Flask"`
+          docker run -p 8000:80 $TAG
           if [ 1 -eq $check ]
           then 
             echo "Check passed pushing image to dockerhub"
