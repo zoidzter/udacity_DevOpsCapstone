@@ -85,9 +85,13 @@ jobs:
     steps:
       - checkout
       - run: 
+      - run:
+          name: Setup common environment variables
+          command: |
+            echo 'export TAG=${DCKUSER}/capstone' >> $BASH_ENV
+      - run:
           name: Build Image
           command: |
-            export TAG=$DCKUSER/capstone
             docker build --tag=$TAG .
             echo $DCKPWD | docker login -u $DCKUSER --password-stdin
             docker run -d -p 8001:8000 $TAG
