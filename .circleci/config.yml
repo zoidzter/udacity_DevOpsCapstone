@@ -36,13 +36,13 @@ jobs:
             make lint
 
   buildDockerImage:
-    docker:
-      - image: circleci/golang:1.15
-        auth:
-          username: $DCKUSER
-          password: $DCKPWD
-          
-    working_directory: ~/repo
+    #docker:
+    #  - image: circleci/golang:1.15
+    #    auth:
+    #      username: $DCKUSER
+    #      password: $DCKPWD
+    machine: true
+    working_directory: ~/app
     
     steps:
       - checkout
@@ -54,12 +54,14 @@ jobs:
       # build and push Docker image
       - run: |
           TAG=capstone
+          docker login -u $DCKPWD -p $DCKUSER
           docker build --tag=$TAG .
           echo $DCKPWD | docker login -u $DCKUSER --password-stdin
           docker run -d -p 8001:8000 $TAG
           sleep 10
           echo "Running check after docker run"
           check=`curl -s localhost:8000 | grep -c "^Simple Flask"`
+          echo "Check result: "$check
           if [ 1 -eq $check ]
           then 
             echo "Check passed pushing image to dockerhub"
