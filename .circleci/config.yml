@@ -1,6 +1,6 @@
 version: 2.1
 jobs:
-  build:
+  lint:
     docker:
     # Use the same Docker base as the project
       - image: python:3.7.3-stretch
@@ -12,9 +12,9 @@ jobs:
       # Download and cache dependencies
       - restore_cache:
           keys:
-            - v1-dependencies-{{ checksum "requirements.txt" }}
+            - lint-{{ checksum "requirements.txt" }}
             # fallback to using the latest cache if no exact match is found
-            - v1-dependencies-
+            - lint-
 
       - run:
           name: install dependencies
@@ -26,7 +26,7 @@ jobs:
       - save_cache:
           paths:
             - ./capstone
-          key: v1-dependencies-{{ checksum "requirements.txt" }}
+          key: lint-{{ checksum "requirements.txt" }}
 
       # run lint!
       - run:
@@ -46,12 +46,20 @@ jobs:
     
     steps:
       - checkout
+  
       - restore_cache:
           keys:
-            - v1-dependencies-{{ checksum "requirements.txt" }}
+            - build-{{ checksum "requirements.txt" }}
             # fallback to using the latest cache if no exact match is found
-            - v1-dependencies-
-          
+            - build-
+  
+      - run:
+          name: install dependencies
+          command: |
+            make setup
+            make activate
+            make install
+        
       - setup_remote_docker:
           version: 19.03.13
           docker_layer_caching: true
@@ -63,12 +71,17 @@ jobs:
           echo $DCKPWD | docker login -u $DCKUSER --password-stdin
           docker push $DCKUSER/$TAG
 
+      - save_cache:
+          paths:
+            - ./capstone
+          key: build-{{ checksum "requirements.txt" }}
+
 workflows:
   default:
     jobs:
-      - build
+      - lint
       - buildDockerImage:
-          requires: [build]
+          requires: [lint]
       #- sendImageToECR
       #    requires: buildDockerImage
       #- startInfra
