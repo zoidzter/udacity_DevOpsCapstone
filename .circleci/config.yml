@@ -84,7 +84,7 @@ jobs:
     
     steps:
       - checkout
-    - run: 
+      - run: 
         name: Build Image
         command: |
           TAG=$DCKUSER/capstone
@@ -96,12 +96,12 @@ jobs:
           check=`curl -s localhost:8001 | grep -c "^Simple Flask"`
           echo "Check result: "$check
           if [ 1 -ne $check ]; then echo "Post check build failed";exit 1;fi
-    - run:
+      - run:
         name: Save image to an archive
         command: |
           mkdir docker-image
           docker save -o docker-image/image.tar capstoneAppImage
-    - persist_to_workspace:
+      - persist_to_workspace:
           root: .
           paths:
             - docker-image
