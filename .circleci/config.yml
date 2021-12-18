@@ -47,6 +47,10 @@ jobs:
     
     steps:
       - checkout
+      - run:
+         name: Install dependencies
+         command: |
+           pip install awscli
      # - setup_remote_docker:
      #      version: 19.03.13
      #      docker_layer_caching: true
@@ -64,7 +68,12 @@ jobs:
           if [ 1 -eq $check ]
           then 
             echo "Check passed pushing image to dockerhub"
-            docker push $TAG
+            # get AWS login
+            aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 312139106895.dkr.ecr.us-east-1.amazonaws.com
+            echo "Tagging image for ECR"
+            docker tag capstone:latest 312139106895.dkr.ecr.us-east-1.amazonaws.com/capstone:latest
+            echo "Pushing image to ECR"
+            docker push 312139106895.dkr.ecr.us-east-1.amazonaws.com/capstone:latest
           else
             exit 1
           fi
@@ -95,8 +104,8 @@ workflows:
       - lint
       - buildDockerImage:
           requires: [lint]
-      - pushImageToECR:
-          requires: [buildDockerImage]
+      #  - pushImageToECR:
+      #     requires: [buildDockerImage]
       #- startInfra
       #- 
       #    requires: [build-frontend]
