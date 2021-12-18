@@ -78,8 +78,7 @@ jobs:
             echo "Tagging image for ECR"
           fi
 
-
- buildDockerImage:
+  buildDockerImage:
     machine: true
     working_directory: ~/app
     
