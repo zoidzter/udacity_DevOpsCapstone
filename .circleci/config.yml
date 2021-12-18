@@ -36,6 +36,7 @@ jobs:
             make lint
 
   buildDockerImage:
+    #https://circleci.com/docs/2.0/building-docker-images/
     #docker:
     #  - image: circleci/golang:1.15
     #    auth:
@@ -53,7 +54,7 @@ jobs:
  
       # build and push Docker image
       - run: |
-          TAG=capstone
+          TAG=$DCKUSER/capstone
           docker build --tag=$TAG .
           echo $DCKPWD | docker login -u $DCKUSER --password-stdin
           docker run -d -p 8001:8000 $TAG
@@ -64,7 +65,7 @@ jobs:
           if [ 1 -eq $check ]
           then 
             echo "Check passed pushing image to dockerhub"
-            docker push zoidzter/capstone
+            docker push $TAG
           else
             exit 1
           fi
