@@ -47,19 +47,6 @@ jobs:
     steps:
       - checkout
   
-      - restore_cache:
-          keys:
-            - build-{{ checksum "requirements.txt" }}
-            # fallback to using the latest cache if no exact match is found
-            - build-
-  
-      - run:
-          name: install dependencies
-          command: |
-            make setup
-            make activate
-            make install
-        
       - setup_remote_docker:
           version: 19.03.13
           docker_layer_caching: true
@@ -70,11 +57,6 @@ jobs:
           docker build --tag=$TAG .
           echo $DCKPWD | docker login -u $DCKUSER --password-stdin
           docker push $DCKUSER/$TAG
-
-      - save_cache:
-          paths:
-            - ./capstone
-          key: build-{{ checksum "requirements.txt" }}
 
 workflows:
   default:
