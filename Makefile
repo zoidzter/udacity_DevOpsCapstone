@@ -8,7 +8,11 @@
 setup:
 	# Create python virtualenv & source it
 	# source ~/.devops/bin/activate
-	python3 -m venv ~/.capstone
+	python3 -m venv one~/repo/capst
+
+activate:
+	# activate venv
+	. ~/repo/capstone/bin/activate
 
 insthadolint:
 	# get hadolint
