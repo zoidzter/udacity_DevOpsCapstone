@@ -1,4 +1,7 @@
 version: 2.1
+orbs:
+  aws-ecr: circleci/aws-ecr@7.3.0
+  
 jobs:
   lint:
     docker:
@@ -35,7 +38,7 @@ jobs:
             make activate
             make lint
 
-  buildDockerImage:
+  buildDockerImagebkp:
     #https://circleci.com/docs/2.0/building-docker-images/
     #docker:
     #  - image: circleci/golang:1.15
@@ -73,26 +76,37 @@ jobs:
             #aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 312139106895.dkr.ecr.us-east-1.amazonaws.com
             docker login -u AWS -p $(aws ecr get-login-password --region us-east-1) 312139106895.dkr.ecr.us-east-1.amazonaws.com
             echo "Tagging image for ECR"
-            
+          fi
 
-  pushImageToECR:
-    docker:
-      - image: amazon/aws-cli
 
+ buildDockerImage:
+    machine: true
     working_directory: ~/app
-  
+    
     steps:
-      - run: |
+      - checkout
+    - run: 
+        name: Build Image
+        command: |
           TAG=$DCKUSER/capstone
+          docker build --tag=$TAG .
           echo $DCKPWD | docker login -u $DCKUSER --password-stdin
-          docker pull $TAG
-          if [ 1 -ne `docker image ls | grep $TAG`]; then exit 1;fi
-          # get AWS login
-          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 312139106895.dkr.ecr.us-east-1.amazonaws.com
-          echo "Tagging image for ECR"
-          docker tag capstone:latest 312139106895.dkr.ecr.us-east-1.amazonaws.com/capstone:latest
-          echo "Pushing image to ECR"
-          docker push 312139106895.dkr.ecr.us-east-1.amazonaws.com/capstone:latest
+          docker run -d -p 8001:8000 $TAG
+          sleep 10
+          echo "Running check after docker run"
+          check=`curl -s localhost:8001 | grep -c "^Simple Flask"`
+          echo "Check result: "$check
+          if [ 1 -ne $check ]; then echo "Post check build failed";exit 1;fi
+    - run:
+        name: Save image to an archive
+        command: |
+          mkdir docker-image
+          docker save -o docker-image/image.tar capstoneAppImage
+    - persist_to_workspace:
+          root: .
+          paths:
+            - docker-image
+
   
   
 workflows:
