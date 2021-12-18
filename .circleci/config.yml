@@ -54,7 +54,7 @@ workflows:
   default:
     jobs:
       - build
-      - buildDockerImage
+      - buildDockerImage:
           requires: [build]
       #- sendImageToECR
       #    requires: buildDockerImage
