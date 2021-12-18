@@ -44,11 +44,11 @@ jobs:
     steps:
       - checkout
       - run: 
-        name: docker image build
-        command: | 
-          apptag=myapi
-          docker build --tag=$apptag .
-          docker image ls | grep $apptag | head -3
+          name: docker image build
+          command: | 
+            apptag=myapi
+            docker build --tag=$apptag .
+            docker image ls | grep $apptag | head -3
 
 workflows:
   default:
