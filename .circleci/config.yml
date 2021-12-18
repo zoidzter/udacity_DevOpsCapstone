@@ -50,7 +50,8 @@ jobs:
       - run:
          name: Install dependencies
          command: |
-           pip install awscli
+           sudo apt update
+           sudo apt install --assume-yes awscli
      # - setup_remote_docker:
      #      version: 19.03.13
      #      docker_layer_caching: true
@@ -72,12 +73,7 @@ jobs:
             #aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 312139106895.dkr.ecr.us-east-1.amazonaws.com
             docker login -u AWS -p $(aws ecr get-login-password --region us-east-1) 312139106895.dkr.ecr.us-east-1.amazonaws.com
             echo "Tagging image for ECR"
-            docker tag capstone:latest 312139106895.dkr.ecr.us-east-1.amazonaws.com/capstone:latest
-            echo "Pushing image to ECR"
-            docker push 312139106895.dkr.ecr.us-east-1.amazonaws.com/capstone:latest
-          else
-            exit 1
-          fi
+            
 
   pushImageToECR:
     docker:
