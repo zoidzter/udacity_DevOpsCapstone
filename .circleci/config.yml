@@ -5,7 +5,7 @@ jobs:
     # Use the same Docker base as the project
       - image: python:3.7.3-stretch
 
-    working_directory: ~/repo
+    working_directory: ~/app
 
     steps:
       - checkout
@@ -47,7 +47,6 @@ jobs:
     
     steps:
       - checkout
-  
      # - setup_remote_docker:
      #      version: 19.03.13
      #      docker_layer_caching: true
@@ -70,14 +69,34 @@ jobs:
             exit 1
           fi
 
+  pushImageToECR:
+    docker:
+      - image: amazon/aws-cli
+
+    working_directory: ~/app
+  
+    steps:
+      - run: |
+          TAG=$DCKUSER/capstone
+          echo $DCKPWD | docker login -u $DCKUSER --password-stdin
+          docker pull $TAG
+          if [ 1 -ne `docker image ls | grep $TAG`]; then exit 1;fi
+          # get AWS login
+          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 312139106895.dkr.ecr.us-east-1.amazonaws.com
+          echo "Tagging image for ECR"
+          docker tag capstone:latest 312139106895.dkr.ecr.us-east-1.amazonaws.com/capstone:latest
+          echo "Pushing image to ECR"
+          docker push 312139106895.dkr.ecr.us-east-1.amazonaws.com/capstone:latest
+  
+  
 workflows:
   default:
     jobs:
       - lint
       - buildDockerImage:
           requires: [lint]
-      #- sendImageToECR
-      #    requires: buildDockerImage
+      - pushImageToECR
+          requires: buildDockerImage
       #- startInfra
       #- 
       #    requires: [build-frontend]
