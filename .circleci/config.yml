@@ -94,8 +94,8 @@ workflows:
     jobs:
       - lint
       - buildDockerImage:
-          requires: [lint]
-      - pushImageToECR
+          requires: lint
+      - pushImageToECR:
           requires: buildDockerImage
       #- startInfra
       #- 
