@@ -34,3 +34,28 @@ jobs:
           command: |
             make activate
             make lint
+
+  buildDockerImage:
+    docker:
+      - image: python:3.7.3-stretch
+    
+    working_directory: ~/repo
+    
+    - run: 
+        name: docker image build
+        command: | 
+          apptag=myapi
+          docker build --tag=$apptag .
+          docker image ls | grep $apptag | head -3
+
+workflows:
+  default:
+    jobs:
+      - build
+      - buildDockerImage
+          requires: build
+      #- sendImageToECR
+      #    requires: buildDockerImage
+      #- startInfra
+      #- 
+      #    requires: [build-frontend]
