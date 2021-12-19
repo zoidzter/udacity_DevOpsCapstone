@@ -109,16 +109,43 @@ jobs:
           paths:
             - docker-image
 
-  
-  
+  pushDockerImageToECR:
+    docker:
+      - image: python:3.7-alpine3.11
+
+    working_directory: ~/app
+    
+    steps:
+      - checkout
+      - run:
+          name: Setup common environment variables
+          command: |
+            echo 'export ECR_REPOSITORY_NAME="${AWS_RESOURCE_NAME_PREFIX}"' >> $BASH_ENV
+            echo 'export FULL_IMAGE_NAME="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${ECR_REPOSITORY_NAME}:${CIRCLE_SHA1}"' >> $BASH_ENV
+      - attach_workspace:
+          at: ./
+      - run:
+          name: install dependencies
+          command: |
+            make setup
+            make activate
+            pip install aws-cli/1.20.16
+      
+      - run:
+          name: Push image to ECR
+          command: |
+            make activate
+            eval $(aws ecr get-login --region $AWS_DEFAULT_REGION --no-include-email)
+            docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPOSITORY_NAME:$CIRCLE_SHA1
+    
 workflows:
   default:
     jobs:
       - lint
       - buildDockerImage:
           requires: [lint]
-      #  - pushImageToECR:
-      #     requires: [buildDockerImage]
+      - pushDockerImageToECR:
+          requires: [buildDockerImage]
       #- startInfra
       #- 
       #    requires: [build-frontend]
