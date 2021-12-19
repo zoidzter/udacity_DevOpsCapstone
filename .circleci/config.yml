@@ -127,14 +127,14 @@ jobs:
       - run:
           name: install dependencies
           command: |
-            make setup
-            make activate
+            python3 -m venv ~/app/capstone 
+            . ~/app/capstone/bin/activate
             pip install awscli
             
       - run:
           name: Push image to ECR
           command: |
-            make activate
+            . ~/app/capstone/bin/activate
             eval $(aws ecr get-login --region $AWS_DEFAULT_REGION --no-include-email)
             docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPOSITORY_NAME:$CIRCLE_SHA1
     
