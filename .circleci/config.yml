@@ -38,46 +38,6 @@ jobs:
             make activate
             make lint
 
-  buildDockerImagebkp:
-    #https://circleci.com/docs/2.0/building-docker-images/
-    #docker:
-    #  - image: circleci/golang:1.15
-    #    auth:
-    #      username: $DCKUSER
-    #      password: $DCKPWD
-    machine: true
-    working_directory: ~/app
-    
-    steps:
-      - checkout
-      - run:
-         name: Install dependencies
-         command: |
-           sudo apt update
-           sudo apt install --assume-yes awscli
-     # - setup_remote_docker:
-     #      version: 19.03.13
-     #      docker_layer_caching: true
- 
-      # build and push Docker image
-      - run: |
-          TAG=$DCKUSER/capstone
-          docker build --tag=$TAG .
-          echo $DCKPWD | docker login -u $DCKUSER --password-stdin
-          docker run -d -p 8001:8000 $TAG
-          sleep 10
-          echo "Running check after docker run"
-          check=`curl -s localhost:8001 | grep -c "^Simple Flask"`
-          echo "Check result: "$check
-          if [ 1 -eq $check ]
-          then 
-            echo "Check passed pushing image to dockerhub"
-            # get AWS login
-            #aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 312139106895.dkr.ecr.us-east-1.amazonaws.com
-            docker login -u AWS -p $(aws ecr get-login-password --region us-east-1) 312139106895.dkr.ecr.us-east-1.amazonaws.com
-            echo "Tagging image for ECR"
-          fi
-
   buildDockerImage:
     machine: true
     working_directory: ~/app
@@ -110,14 +70,13 @@ jobs:
             - docker-image
 
   pushDockerImageToECR:
-    docker:
-      - image: circleci/python:3.7.3-stretch
-
+    #docker:
+    #  - image: circleci/python:3.7.3-stretch
+    machine: true
     working_directory: ~/app
     
     steps:
       - checkout
-      - machine: true
       - run:
           name: Setup common environment variables
           command: |
