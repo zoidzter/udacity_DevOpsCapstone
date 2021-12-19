@@ -111,7 +111,7 @@ jobs:
 
   pushDockerImageToECR:
     docker:
-      - image: python:3.7-alpine3.11
+      - image: amazon/aws-cli
 
     working_directory: ~/app
     
@@ -129,7 +129,6 @@ jobs:
           command: |
             make setup
             make activate
-            pip install aws-cli/1.20.16
       
       - run:
           name: Push image to ECR
