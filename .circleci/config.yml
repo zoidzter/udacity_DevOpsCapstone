@@ -117,6 +117,7 @@ jobs:
     
     steps:
       - checkout
+      - machine: true
       - run:
           name: Setup common environment variables
           command: |
