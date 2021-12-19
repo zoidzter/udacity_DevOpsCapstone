@@ -111,7 +111,7 @@ jobs:
 
   pushDockerImageToECR:
     docker:
-      - image: python:3.7-alpine3.11
+      - image: circleci/python:3.7.3-stretch
 
     working_directory: ~/app
     
@@ -128,7 +128,6 @@ jobs:
           name: install dependencies
           command: |
             pip install --upgrade pip
-            pip install make
             pip install awscli
             make setup
             make activate
