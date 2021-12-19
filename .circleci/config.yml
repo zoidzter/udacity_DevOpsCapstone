@@ -70,13 +70,14 @@ jobs:
             - docker-image
 
   pushDockerImageToECR:
-    #docker:
-    #  - image: circleci/python:3.7.3-stretch
-    machine: true
+    docker:
+      - image: circleci/python:3.7.3-stretch
+    
     working_directory: ~/app
     
     steps:
       - checkout
+      - setup_remote_docker
       - run:
           name: Setup common environment variables
           command: |
