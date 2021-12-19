@@ -91,7 +91,16 @@ jobs:
             python3 -m venv ~/app/capstone 
             . ~/app/capstone/bin/activate
             pip install awscli
-            
+      - run:
+          name: Load image
+          command: |
+            docker load --input docker-image/image.tar
+      - run:
+          name: Tag image
+          command: |
+            IMAGEID=`docker images --format='{{.ID}}' | head -1`
+            docker tag $IMAGEID $FULL_IMAGE_NAME
+            echo 'export IMAGEID=$IMAGEID' >> $BASH_ENV
       - run:
           name: Push image to ECR
           command: |
