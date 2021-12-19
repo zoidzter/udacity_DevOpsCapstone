@@ -127,8 +127,9 @@ jobs:
       - run:
           name: install dependencies
           command: |
+            pip install --upgrade pip
             pip install make
-            pip install aws-cli/1.20.16
+            pip install awscli
             make setup
             make activate
       
