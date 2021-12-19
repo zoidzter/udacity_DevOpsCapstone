@@ -11,7 +11,7 @@ setup:
 	python3 -m venv ~/app/capstone
 
 activate:
-	source ~/app/capstone/bin/activate
+	. ~/app/capstone/bin/activate
 
 insthadolint:
 	# get hadolint
