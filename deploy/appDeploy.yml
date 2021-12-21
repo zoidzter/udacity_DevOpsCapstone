@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pmallon_capstone
+  namespace: default
+  labels:
+    app: pmallon_capstone
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: pmallon_capstone
+  strategy:
+    rollingUpdate:
+      maxSurge: 50%
+      maxUnavailable: 50%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: pmallon_capstone
+    spec:
+      containers:
+      - name: app
+        image: DOCKER_IMAGE_NAME
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        env:
+        - name: VERSION_INFO
+          value: "VERSION_INFO"
+        - name: BUILD_DATE
+          value: "BUILD_DATE"
+        ports:
+        - containerPort: 8000
