@@ -174,7 +174,7 @@ jobs:
             BUILD_DATE=$(date '+%Y%m%d%H%M%S')
             cat deploy/appDeployTemplate.yml |\
                sed "s|DOCKER_IMAGE_NAME|<< parameters.docker-image-name >>|\
-                g;s|BUILD_DATE|$BUILD_DATE|g;s|VERSION_INFO|\
+                g;s|BUILD_DATE_VAL|$BUILD_DATE|g;s|VERSION_INFO_VAL|\
                 << parameters.version-info >>|g" > deploy/appDeploy.yml
       - aws-eks/update-kubeconfig-with-authenticator:
           cluster-name: << parameters.cluster-name >>
