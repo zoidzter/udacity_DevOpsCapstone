@@ -172,7 +172,7 @@ jobs:
           command: |
             # Replace the placeholders in appDeploy.yml, to prevent hardcoding
             BUILD_DATE=$(date '+%Y%m%d%H%M%S')
-            cat deploy/appDeploy.yml.template |\
+            cat deploy/appDeployTemplate.yml |\
                sed "s|DOCKER_IMAGE_NAME|<< parameters.docker-image-name >>|\
                 g;s|BUILD_DATE|$BUILD_DATE|g;s|VERSION_INFO|\
                 << parameters.version-info >>|g" > deploy/appDeploy.yml
