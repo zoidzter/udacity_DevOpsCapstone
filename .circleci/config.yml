@@ -239,7 +239,6 @@ workflows:
           requires:
             - aws-eks/create-cluster
       - testApp:
-          name: test-application
           cluster-name: $EKS_CLUSTERNAME
           aws-region: $AWS_DEFAULT_REGION
           expected-version-info: "${CIRCLE_SHA1}"
