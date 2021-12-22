@@ -2,7 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: pmalloncapstone
-  namespace: default
   labels:
     app: pmalloncapstone
 spec:
@@ -21,16 +20,16 @@ spec:
         app: pmalloncapstone
     spec:
       containers:
-      - name: app
+      - name: pmalloncapstone
         image: DOCKER_IMAGE_NAME
         resources:
           requests:
             cpu: 100m
             memory: 100Mi
         env:
-        - name: VERSION_INFO_VAL
-          value: "VERSION_INFO"
-        - name: BUILD_DATE_VAL
-          value: "BUILD_DATE"
+        - name: VERSION_INFO
+          value: "VERSION_INFO_VAL"
+        - name: BUILD_DATE
+          value: "BUILD_DATE_VAL"
         ports:
         - containerPort: 8000
