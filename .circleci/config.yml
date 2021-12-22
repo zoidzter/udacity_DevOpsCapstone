@@ -174,7 +174,7 @@ jobs:
             BUILD_DATE=$(date '+%Y%m%d%H%M%S')
             cat deploy/appDeployTemplate.yml |\
                sed "s|DOCKER_IMAGE_NAME|<< parameters.docker-image-name >>|\
-                g;s|BUILD_DATE_VAL|$BUILD_DATE|g;s|VERSION_INFO_|\
+                g;s|BUILD_DATE_VAL|$BUILD_DATE|g;s|VERSION_INFO_VAL|\
                 << parameters.version-info >>|g" > deploy/appDeploy.yml
       - aws-eks/update-kubeconfig-with-authenticator:
           cluster-name: << parameters.cluster-name >>
@@ -213,6 +213,7 @@ jobs:
           command: |
             kubectl get pods
             kubectl get services
+            kubectl get deployment
             sleep 30
             for attempt in {1..20}; do
               EXTERNAL_IP=$(kubectl get service pmalloncapstone | awk '{print $4}' | tail -n1)
@@ -225,9 +226,9 @@ jobs:
             done
             sleep 120
             echo "External IP: "$EXTERNAL_IP
-            curl -s --retry 10 "http://$EXTERNAL_IP" | grep "<< parameters.expected-version-info >>"
+            curl -s --retry 10 "http://$EXTERNAL_IP:8000" | grep "Simple Flask Webapp"
             
-  rollBackApp:
+  unDeployApp:
     executor: aws-eks/python3
     parameters:
       cluster-name:
@@ -281,7 +282,7 @@ workflows:
           expected-version-info: "${CIRCLE_SHA1}"
           requires: 
             - deployApp
-      - rollBackApp:
+      - unDeployApp:
           cluster-name: $EKS_CLUSTERNAME
           aws-region: $AWS_DEFAULT_REGION
           requires: 
@@ -291,4 +292,4 @@ workflows:
           aws-region: $AWS_DEFAULT_REGION
           wait: true
           requires: 
-            - rollBackApp
+            - unDeployApp
