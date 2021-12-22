@@ -246,7 +246,7 @@ jobs:
           aws-region: << parameters.aws-region >>
       - kubernetes/delete-resource:
           resource-types: "deployment,service"
-          label-selector: "app=demo"
+          label-selector: "app=pmalloncapstone"
           wait: true
       - run:
           name: Check on pod status
