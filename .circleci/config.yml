@@ -287,9 +287,9 @@ workflows:
           aws-region: $AWS_DEFAULT_REGION
           requires: 
             - testApp
-      - aws-eks/delete-cluster:
-          cluster-name: $EKS_CLUSTERNAME
-          aws-region: $AWS_DEFAULT_REGION
-          wait: true
-          requires: 
-            - unDeployApp
+#      - aws-eks/delete-cluster:
+#          cluster-name: $EKS_CLUSTERNAME
+#          aws-region: $AWS_DEFAULT_REGION
+#          wait: true
+#          requires: 
+#            - unDeployApp
