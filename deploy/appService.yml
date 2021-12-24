@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: pmalloncapstone
+  labels:
+    app: pmalloncapstone
+spec:
+  # automatically create an external load-balanced IP for the service.
+  type: LoadBalancer
+  ports:
+  - port: 8000
+    targetPort: 8000
+    protocol: TCP
+  selector:
+    app: pmalloncapstone

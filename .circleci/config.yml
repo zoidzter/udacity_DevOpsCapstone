@@ -1,444 +1,295 @@
-# Use the latest 2.1 version of CircleCI pipeline process engine. See: https://circleci.com/docs/2.0/configuration-reference
 version: 2.1
-
 orbs:
-  slack: circleci/slack@4.4.4
-  aws-cli: circleci/aws-cli@2.0
-
-commands:
-  destroy-env:
-    description: Destroy back-end and front-end cloudformation stacks given a workflow ID.
-    parameters:
-      workflow-id:
-        type: string
-        default: ${CIRCLE_WORKFLOW_ID:0:7}
-    steps:
-      - run:
-          name: Force removal of S3 buckets (PRE step for stack delete)
-          when: on_fail
-          command: aws s3 rb s3://udapeople-${CIRCLE_WORKFLOW_ID:0:7} --force
-      - run:
-          name: Destroy Environment on Fail
-          when: on_fail
-          command: |
-            aws cloudformation delete-stack --stack-name "backend-infra-${CIRCLE_WORKFLOW_ID:0:7}"
-            aws cloudformation delete-stack --stack-name "frontend-infra-${CIRCLE_WORKFLOW_ID:0:7}"
+  aws-eks: circleci/aws-eks@1.2
+  kubernetes: circleci/kubernetes@0.11.2
   
-  revert-migrations:
-    steps:
-      - run:
-          name: Revert migrations
-          when: on_fail
-          command: |
-            SUCCESS=`curl -H "Content-Type: text/plain" -H "token: ${CIRCLE_WORKFLOW_ID}" \
-                  --request GET https://api.memstash.io/values/migrationStatus`
-            if [ $SUCCESS -eq 1 ]; 
-            then
-              cd ~/project/backend
-              npm install
-              npm run migrations:revert
-            fi
-            
 jobs:
-  build-frontend:
+  lint:
     docker:
-      - image: circleci/node:13.8.0
+    # Use the same Docker base as the project
+      - image: python:3.7.3-stretch
+
+    working_directory: ~/app
+
     steps:
       - checkout
+      # Download and cache dependencies
       - restore_cache:
-          keys: [frontend-build]
+          keys:
+            - lint-{{ checksum "requirements.txt" }}
+            # fallback to using the latest cache if no exact match is found
+            - lint-
+
       - run:
-          name: Build front-end
+          name: install dependencies
           command: |
-            cd frontend
-            npm i
-            npm run build
-      - run:
-          command: | 
-            echo "updating Status to fail"
-            BUILD_STATUS="fail"
-          when: on_fail
+            make setup
+            make activate
+            make install
+            
       - save_cache:
-          paths: [frontend/node_modules]
-          key: frontend-build
-      - slack/notify:
-          event: fail
-          template: basic_fail_1
-      - slack/notify:
-          event: pass
-          template: basic_success_1
-
-  build-backend:
-    docker:
-      - image: circleci/node:13.8.0
-    steps:
-      - checkout
-      - restore_cache:
-          keys: [backend-build]
-      - run:
-          name: Build back-end
-          command: |
-            cd backend
-            npm i
-            npm run build
-      - save_cache:
-          paths: [backend/node_modules]
-          key: backend-build
-      - slack/notify:
-          event: fail
-          template: basic_fail_1
-      - slack/notify:
-          event: pass
-          template: basic_success_1
-
-  test-frontend:
-    docker:
-      - image: circleci/node:13.8.0
-    steps:
-      - checkout
-      - restore_cache:
-          keys: [frontend-test]
-      - run: 
-          name: Test front-end
-          command: |
-            cd frontend
-            npm i
-            npm run test
-      - save_cache:
-          paths: [frontend/node_modules]
-          key: frontend-test
-
-  test-backend:
-    docker:
-      - image: circleci/node:13.8.0
-    steps:
-      - checkout
-      - restore_cache:
-          keys: [backend-test]
-      - run: 
-          name: Test back-end
-          command: |
-            cd backend
-            npm i
-            npm run test
-      - save_cache:
-          paths: [backend/node_modules]
-          key: backend-test
-
-  scan-frontend:
-    docker:
-      - image: circleci/node:13.8.0
-    steps:
-      - checkout
-      - restore_cache:
-          keys: [frontend-scan]
-      - run: 
-          name: Scan front-end
-          command: |
-            cd frontend
-            npm i
-            npm audit fix --audit-level=critical
-      - save_cache:
-          paths: [frontend/node_modules]
-          key: frontend-scan
-
-  scan-backend:
-    docker:
-      - image: circleci/node:13.8.0
-    steps:
-      - checkout
-      - restore_cache:
-          keys: [backend-scan]
-      - run: 
-          name: Scan back-end
-          command: |
-            cd backend
-            npm i
-            npm audit fix --audit-level=critical
-      - save_cache:
-          paths: [backend/node_modules]
-          key: backend-scan
-
-  deploy-infrastructure:
-    docker:
-     - image: amazon/aws-cli
-    steps:
-     - checkout
-     - run:
-         name: "Install tar and gzip"
-         command: |
-           yum -y install tar
-           yum -y install gzip
-     - run:
-         name: Ensure back-end infrastructure exists
-         command: |
-           aws cloudformation deploy \
-            --template-file .circleci/files/backend.yml \
-            --tags project=udacityProject3 \
-            --stack-name "backend-infra-${CIRCLE_WORKFLOW_ID:0:7}" \
-            --parameter-overrides ID=${CIRCLE_WORKFLOW_ID:0:7}
-     - run:
-         name: Ensure front-end infrastructure exist
-         command: |
-           aws cloudformation deploy \
-            --template-file .circleci/files/frontend.yml \
-            --tags project=udacityProject3 \
-            --stack-name "frontend-infra-${CIRCLE_WORKFLOW_ID:0:7}" \
-            --parameter-overrides ID=${CIRCLE_WORKFLOW_ID:0:7}
-     - run:
-         name: Add back-end ip to ansible inventory
-         command: |
-           BACKEND_EC2_IP=`aws ec2 describe-instances --query 'Reservations[*].Instances[*].PublicIpAddress' \
-                --filters "Name=tag:Name,Values=backend-${CIRCLE_WORKFLOW_ID:0:7}"  --output text`
-           curl -H "Content-Type: text/plain" -H "token: ${CIRCLE_WORKFLOW_ID}" \
-                --request PUT --data `echo $BACKEND_EC2_IP` https://api.memstash.io/values/backendIP 
-           echo $BACKEND_EC2_IP >> .circleci/ansible/inventory.txt
-           echo "BACKEND_EC2_IP: " $BACKEND_EC2_IP
-     - persist_to_workspace:
-         root: ~/
-         paths:
-           - project/.circleci/ansible/inventory.txt
-     - destroy-env  
-
-  configure-infrastructure:
-    docker:
-     - image: python:3.7-alpine3.11
-    steps:
-     - checkout
-     - add_ssh_keys:
-         fingerprints: 
-           - "60:2a:dd:e9:96:36:9e:fa:f6:1f:31:75:df:aa:cd:0b"
-     - attach_workspace:
-         at: ~/
-     - run:
-         name: Install dependencies
-         command: |
-           pip install awscli
-           apk add --update ansible
-     - run:
-         name: Configure server
-         command: |
-           ansible-playbook -i .circleci/ansible/inventory.txt .circleci/ansible/configure-server.yml
-     - destroy-env
-
-  run-migrations:
-    docker:
-      - image: circleci/node:13.8.0
-    steps:
-      - checkout
-      - restore_cache:
-          keys: [backend-build]
-      - run:
-          name: Run migrations
-          command: |
-            cd backend
-            npm install
-            npm run build
-            npm run migrations > runMigrations.log
-            if [ 1 -eq $(grep -c "has been executed successfully" runMigrations.log) ]
-            then
-              curl -H "Content-Type: text/plain" -H "token: ${CIRCLE_WORKFLOW_ID}" \
-                  --request PUT --data "1" https://api.memstash.io/values/migrationStatus
-            else
-              curl -H "Content-Type: text/plain" -H "token: ${CIRCLE_WORKFLOW_ID}" \
-                  --request PUT --data "0" https://api.memstash.io/values/migrationStatus
-            fi
-      - destroy-env
-      - revert-migrations 
-
-  deploy-frontend:
-    docker:
-      - image: python:3.7-alpine3.11
-    steps:
-      - checkout
-      - run:
-          name: Install dependencies
-          command: |
-            apk add --update curl nodejs npm ansible zip tar
-            pip install awscli
-      - run:
-          name: Get backend url
-          command: |
-            BACKEND_IP=`curl -H "Content-Type: text/plain" -H "token: ${CIRCLE_WORKFLOW_ID}" \
-                        --request GET https://api.memstash.io/values/backendIP`
-            export API_URL="http://${BACKEND_IP}:3030"
-            curl -H "Content-Type: text/plain" -H "token: ${CIRCLE_WORKFLOW_ID}" \
-                        --request PUT --data `echo $API_URL` https://api.memstash.io/values/backendURL
-            echo "${API_URL}"
-            echo ENVIRONMENT=production > "frontend/.env"
-            echo NODE_ENV=production >> "frontend/.env"
-            echo API_URL=$API_URL >> "frontend/.env"
-            cat frontend/.env
-      - run:
-          name: Deploy frontend objects
-          command: |
-            cd frontend
-            cat .env
-            npm install
-            npm run build
-      - run:
-          name: S3 copy objects
-          command: |
-            cd frontend
-            aws s3 cp ./dist s3://udapeople-${CIRCLE_WORKFLOW_ID:0:7} --recursive
-      - destroy-env
-      - revert-migrations
-                 
-  deploy-backend:
-    docker:
-      - image: python:3.7-alpine3.11
-    steps:
-      - checkout
-      - add_ssh_keys:
-          fingerprints:
-            - "5f:95:9b:86:8b:2a:fb:e7:f1:ff:c0:dd:f0:99:20:ae"
-      - restore_cache:
-          keys: [backend-build]
-      - attach_workspace:
-          at: ~/
-      - run:
-          name: Set env
-          command: |
-            echo ENVIROMENT=$ENVIROMENT > "backend/.env"
-            echo TYPEORM_CONNECTION=$TYPEORM_CONNECTION >> "backend/.env"
-            echo TYPEORM_MIGRATIONS_DIR=$TYPEORM_MIGRATIONS_DIR >> "backend/.env"
-            echo TYPEORM_ENTITIES=$TYPEORM_ENTITIES >> "backend/.env"
-            echo TYPEORM_MIGRATIONS=$TYPEORM_MIGRATIONS >> "backend/.env"
-            echo TYPEORM_HOST=$TYPEORM_HOST >> "backend/.env"
-            echo TYPEORM_PORT=$TYPEORM_PORT >> "backend/.env"
-            echo TYPEORM_USERNAME=$TYPEORM_USERNAME >> "backend/.env"
-            echo TYPEORM_PASSWORD=$TYPEORM_PASSWORD >> "backend/.env"
-            echo TYPEORM_DATABASE=$TYPEORM_DATABASE >> "backend/.env"
-      - run:
-          name: Install dependencies
-          command: |
-            apk add --update curl nodejs npm ansible zip
-            pip install awscli
-      - run:
-          name: Deploy backend
-          command: |
-            ansible-playbook -i .circleci/ansible/inventory.txt .circleci/ansible/deploy-backend.yml
-      - destroy-env
-      - revert-migrations
-
-  smoke-test:
-    docker:
-      - image: python:3.7-alpine3.11 
-    steps:
-      - checkout
-      - run:
-          name: Install dependencies
-          command: |
-            apk add --update curl
-            pip install awscli
-      - run:
-          name: Backend smoke test.
-          command: |
-            BACKEND_URL=`curl -H "Content-Type: text/plain" -H "token: ${CIRCLE_WORKFLOW_ID}" \
-                        --request GET https://api.memstash.io/values/backendURL`
-            API_URL="${BACKEND_URL}/api/status"
-            echo "SMOKE Testing backend URL: $API_URL"
-            BACKEND_RES=`curl $API_URL | grep -c 'status":"ok'`
-            echo $BACKEND_RES > smoketestres.txt
-            echo "BACKEND SMOKE TEST RESULT:: $BACKEND_RES"
-      - run:
-          name: Frontend smoke test.
-          command: |
-            FRONTEND_URL=`aws cloudformation describe-stacks --stack-name frontend-infra-${CIRCLE_WORKFLOW_ID:0:7} \
-                          --query "Stacks[0].Outputs[?OutputKey=='WebsiteURL'].OutputValue" --output text`
-            echo "FRONTEND_URL: " $FRONTEND_URL
-            FRONTEND_RES=`curl -s ${FRONTEND_URL} | grep -c "Welcome"`;
-            echo $FRONTEND_RES >> smoketestres.txt
-            echo "FRONTEND SMOKE TEST RESULT:: $FRONTEND_RES"
-      - run:
-          name: Report Smoke test status
-          command: |
-            STATUS=$(if [ 2 -eq `grep -c 1 smoketestres.txt` ]; then echo 0; else echo 1; fi)
-            echo "SMOKE TEST EXIT STATUS: $STATUS"
-            exit $STATUS
-      - destroy-env
-      - revert-migrations
-
-  cloudfront-update:
-    docker:
-      - image: amazon/aws-cli
-    steps:
-      - checkout
-      - run:
-          name: Install dependencies
-          command: |
-            yum -y install tar gzip
-      - run:
-          name: Get previous stackid for cleanup job
-          command: |
-            aws cloudformation \
-            list-exports --query "Exports[?Name==\`WorkflowID\`].Value" \
-              --region us-east-1 --no-paginate --output text > ~/project/.circleci/oldstackid.txt
-      - run:
-          name: Update cloudfront distribution
-          command: |
-            aws cloudformation update-stack \
-                --use-previous-template \
-                --stack-name project3primer \
-                --parameters ParameterKey=WorkflowID,ParameterValue=${CIRCLE_WORKFLOW_ID:0:7},UsePreviousValue=false
-      - run:
-          name: "output URL"
-          command: echo "udapeople-${CIRCLE_WORKFLOW_ID:0:7}.s3.amazonaws.com"
-      - persist_to_workspace:
-          root: ~/
           paths:
-            - project/.circleci/oldstackid.txt
-      - destroy-env
-      - revert-migrations
+            - ./capstone
+          key: lint-{{ checksum "requirements.txt" }}
 
-  cleanup:
-    docker:
-      - image: amazon/aws-cli
+      # run lint!
+      - run:
+          name: run lint
+          command: |
+            make activate
+            make lint
+
+  buildDockerImage:
+    machine: true
+    working_directory: ~/app
+    
     steps:
+      - checkout
       - run:
-          name: Install dependencies
+          name: Setup common environment variables
           command: |
-            yum -y install tar gzip
-      - attach_workspace:
-          at: ~/
+            echo 'export TAG=${DCKUSER}/capstone' >> $BASH_ENV
       - run:
-          name: AWS cleanup of Old Stack
+          name: Build Image
           command: |
-            OldWorkflowID=`cat ./.circleci/oldstackid.txt`
-            echo "OLD STACK ID FOR DELETION: $OldWorkflowID"
-            aws s3 rb s3://udapeople-$OldWorkflowID --force
-            aws cloudformation delete-stack --stack-name "backend-infra-$OldWorkflowID"
-            aws cloudformation delete-stack --stack-name "frontend-infra-$OldWorkflowID"
+            docker build --tag=$TAG .
+            echo $DCKPWD | docker login -u $DCKUSER --password-stdin
+            docker run -d -p 8001:8000 $TAG
+            sleep 10
+            echo "Running check after docker run"
+            check=`curl -s localhost:8001 | grep -c "^Simple Flask"`
+            echo "Check result: "$check
+            if [ 1 -ne $check ]; then echo "Post check build failed";exit 1;fi
+      - run:
+          name: Save image to an archive
+          command: |
+            mkdir docker-image
+            docker save -o docker-image/image.tar $TAG
+      - persist_to_workspace:
+          root: .
+          paths:
+            - docker-image
 
+  pushDockerImageToECR:
+    docker:
+      - image: circleci/python:3.7.3-stretch
+    
+    working_directory: ~/app
+    
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Setup common environment variables
+          command: |
+            echo 'export ECR_REPOSITORY_NAME="${AWS_RESOURCE_NAME_PREFIX}"' >> $BASH_ENV
+            echo 'export FULL_IMAGE_NAME="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${ECR_REPOSITORY_NAME}:${CIRCLE_SHA1}"' >> $BASH_ENV
+      - attach_workspace:
+          at: ./
+      - run:
+          name: install dependencies
+          command: |
+            python3 -m venv ~/app/capstone 
+            . ~/app/capstone/bin/activate
+            pip install awscli
+      - run:
+          name: Load image
+          command: |
+            docker load --input docker-image/image.tar
+      - run:
+          name: Tag image
+          command: |
+            IMAGEID=`docker images --format='{{.ID}}' | head -1`
+            docker tag $IMAGEID $FULL_IMAGE_NAME
+            echo 'export IMAGEID=$IMAGEID' >> $BASH_ENV
+      - run:
+          name: Push image to ECR
+          command: |
+            . ~/app/capstone/bin/activate
+            eval $(aws ecr get-login --region $AWS_DEFAULT_REGION --no-include-email)
+            docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPOSITORY_NAME:$CIRCLE_SHA1
+  
+  createCluster:
+    executor: aws-eks/python3
+    parameters:
+      cluster-name:
+        description: |
+          Name of the EKS cluster
+        type: string
+    steps:
+      - checkout
+      - aws-eks/install-aws-iam-authenticator:
+          release-tag: ''
+      - run:
+          name: Install the eksctl tool
+          command: |
+            if which eksctl > /dev/null; then
+            echo "eksctl is already installed"
+            exit 0
+            fi
+            mkdir -p eksctl_download
+            curl --silent --location --retry 5 "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C eksctl_download
+            chmod +x eksctl_download/eksctl
+            SUDO=""
+            if [ $(id -u) -ne 0 ] && which sudo > /dev/null ; then
+            SUDO="sudo"
+            fi
+            $SUDO mv eksctl_download/eksctl /usr/local/bin/
+            rmdir eksctl_download
+      - aws-eks/create-cluster:
+          cluster-name: << parameters.cluster-name >>
+          skip-kubectl-install: false
+          verbose: 3
+          node-type: t2.small
+          nodes-max: 2
+          ssh-access: false
+          ssh-public-key: ''
+
+  deployApp:
+    executor: aws-eks/python3
+    parameters:
+      cluster-name:
+        description: |
+          EKS cluster name
+        type: string
+      docker-image-name:
+        description: |
+          Docker image to be deployed
+        type: string
+      version-info:
+        description: |
+          App version information
+        type: string
+      aws-region:
+        description: |
+          AWS region
+        type: string
+        default: ""
+    steps:
+      - checkout
+      - run:
+          name: Create deployment manifest
+          command: |
+            # Replace the placeholders in appDeploy.yml, to prevent hardcoding
+            BUILD_DATE=$(date '+%Y%m%d%H%M%S')
+            cat deploy/appDeployTemplate.yml |\
+               sed "s|DOCKER_IMAGE_NAME|<< parameters.docker-image-name >>|\
+                g;s|BUILD_DATE_VAL|$BUILD_DATE|g;s|VERSION_INFO_VAL|\
+                << parameters.version-info >>|g" > deploy/appDeploy.yml
+      - aws-eks/update-kubeconfig-with-authenticator:
+          cluster-name: << parameters.cluster-name >>
+          install-kubectl: true
+          aws-region: << parameters.aws-region >>
+      - kubernetes/create-or-update-resource:
+          resource-file-path: "deploy/appDeploy.yml"
+          get-rollout-status: true
+          resource-name: deploy/pmalloncapstone
+      - kubernetes/create-or-update-resource:
+          resource-file-path: "deploy/appService.yml"
+  
+  testApp:
+    executor: aws-eks/python3
+    parameters:
+      cluster-name:
+        description: |
+          Name of the EKS cluster
+        type: string
+      aws-region:
+        description: |
+          AWS region
+        type: string
+        default: ""
+      expected-version-info:
+        description: |
+          Expected app version to test the correct version has been deployed
+        type: string
+    steps:
+      - aws-eks/update-kubeconfig-with-authenticator:
+          cluster-name: << parameters.cluster-name >>
+          install-kubectl: true
+          aws-region: << parameters.aws-region >>
+      - run:
+          name: Wait for service to be ready
+          command: |
+            kubectl get pods
+            kubectl get services
+            kubectl get deployment
+            sleep 30
+            for attempt in {1..20}; do
+              EXTERNAL_IP=$(kubectl get service pmalloncapstone | awk '{print $4}' | tail -n1)
+              echo "Checking external IP: ${EXTERNAL_IP}"
+              if [ -n "${EXTERNAL_IP}" ] && [ -z $(echo "${EXTERNAL_IP}" | grep "pending") ]; then
+                break
+              fi
+              echo "Waiting for external IP to be ready: ${EXTERNAL_IP}"
+              sleep 10
+            done
+            sleep 120
+            echo "External IP: "$EXTERNAL_IP
+            curl -s --retry 10 "http://$EXTERNAL_IP:8000" | grep "Simple Flask Webapp"
+            
+  unDeployApp:
+    executor: aws-eks/python3
+    parameters:
+      cluster-name:
+        description: |
+          Name of the EKS cluster
+        type: string
+      aws-region:
+        description: |
+          AWS region
+        type: string
+        default: ""
+    steps:
+      - aws-eks/update-kubeconfig-with-authenticator:
+          cluster-name: << parameters.cluster-name >>
+          install-kubectl: true
+          aws-region: << parameters.aws-region >>
+      - kubernetes/delete-resource:
+          resource-types: "deployment,service"
+          label-selector: "app=pmalloncapstone"
+          wait: true
+      - run:
+          name: Check on pod status
+          command: |
+            kubectl get pods
+    
+    
 workflows:
   default:
     jobs:
-      - build-frontend
-      - build-backend
-      - test-frontend:
-          requires: [build-frontend]
-      - test-backend:
-          requires: [build-backend]
-      - scan-frontend:
-          requires: [test-frontend]
-      - scan-backend:
-          requires: [test-backend]
-      - deploy-infrastructure:
-          requires: [test-frontend, test-backend, scan-frontend, scan-backend]
-          filters:
-            branches:
-              only: [circleci-project-setup]
-      - configure-infrastructure:
-          requires: [deploy-infrastructure]
-      - run-migrations:
-          requires: [configure-infrastructure]
-      - deploy-frontend:
-          requires: [run-migrations]
-      - deploy-backend:
-          requires: [run-migrations]
-      - smoke-test:
-          requires: [deploy-backend, deploy-frontend]
-      - cloudfront-update:
-          requires: [smoke-test]
-      - cleanup:
-          requires: [cloudfront-update]
+      - lint
+      - buildDockerImage:
+          requires: 
+            - lint
+      - pushDockerImageToECR:
+          requires: 
+            - buildDockerImage
+      - createCluster:
+          cluster-name: $EKS_CLUSTERNAME
+          requires: 
+            - pushDockerImageToECR
+      - deployApp:
+          cluster-name: $EKS_CLUSTERNAME
+          aws-region: $AWS_DEFAULT_REGION
+          docker-image-name: "${AWS_ECR_ACCOUNT_URL}/capstone:${CIRCLE_SHA1}"
+          version-info: "${CIRCLE_SHA1}"
+          requires: 
+            - createCluster
+      - testApp:
+          cluster-name: $EKS_CLUSTERNAME
+          aws-region: $AWS_DEFAULT_REGION
+          expected-version-info: "${CIRCLE_SHA1}"
+          requires: 
+            - deployApp
+      - unDeployApp:
+          cluster-name: $EKS_CLUSTERNAME
+          aws-region: $AWS_DEFAULT_REGION
+          requires: 
+            - testApp
+#      - aws-eks/delete-cluster:
+#          cluster-name: $EKS_CLUSTERNAME
+#          aws-region: $AWS_DEFAULT_REGION
+#          wait: true
+#          requires: 
+#            - unDeployApp
